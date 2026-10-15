@@ -1,0 +1,8 @@
+{
+  "repo": "misty-step/doomscrum",
+  "source_commit": "bd8fd43a518dcf9461476cc714a26614c675799d",
+  "source_folder": "site",
+  "project_prefix": "doomscrum",
+  "before_url": "https://misty-step.github.io/doomscrum/",
+  "build_kind": "static"
+}
