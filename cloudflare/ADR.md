@@ -16,8 +16,16 @@ an explicit .html URL to the same content while retaining its query. Mutable
 application resources and new paid features are not introduced. Site-specific
 exceptions and retained defects are recorded in README.md.
 
-Each CI run/attempt has its own review Worker. It prepares the artifact once, verifies
-all hashes, exercises real A/B/A native rollback, and promotes the same directory
+One preview Worker uses native immutable version URLs, rather than allocating a
+Worker per CI run. CI records the actual deployed version ID and verifies its
+documented version URL, including marker isolation while synthetic B is live.
+The accepted migration identity remains untouched:
+https://doomscrum-site-preview-38799790030-1.misty-step.workers.dev
+The one-time Actions-owned cleanup receipts live with task t_efbebddf; no perpetual
+pruner, TTL, cron or fleet CD service remains. Native preview URL reference:
+https://developers.cloudflare.com/workers/configuration/previews/
+CI prepares the artifact once, verifies all hashes, exercises real A/B/A native
+rollback, and promotes the same directory
 only from the current default branch with the promotion variable enabled. That
 production Custom Domain attachment is an intentional DNS-affecting cutover.
 It is not enabled by a preview or by merely merging this adapter. Repository
