@@ -24,7 +24,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           RETAINED_REVIEW_PREVIEW: doomscrum-site-preview-38799790030-1
           LEGACY_PREVIEW_RUN: '38790637875'
-        run: python3 cloudflare/prune_previews.py --apply
+        run: |
+          python3 -m unittest discover -s cloudflare -p test_retention.py -v
+          python3 cloudflare/prune_previews.py --apply
       - name: Preserve reviewed adapter and identify immutable serving source
         id: source
         run: |

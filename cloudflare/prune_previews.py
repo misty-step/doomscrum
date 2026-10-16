@@ -97,12 +97,15 @@ def main():
         while True:
             url = 'https://' + name + '.misty-step.workers.dev/?deleted=' + str(time.time_ns())
             try:
-                response = urllib.request.urlopen(url, timeout=15)
+                response = urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'MistyStep-static-site-parity/1.0 (+https://foundations.mistystep.io/)', 'Cache-Control': 'no-cache'}), timeout=15)
             except urllib.error.HTTPError as exc:
                 response = exc
             with response:
                 status = response.status
-            if status == 404:
+                body = response.read(16384)
+            proof.setdefault('http_observations', {}).setdefault(name, []).append({'status': status, 'missing_worker_1042': b'1042' in body})
+            path.write_text(json.dumps(proof, indent=2) + '\n')
+            if status == 404 and b'1042' in body:
                 break
             if time.monotonic() >= deadline:
                 raise RuntimeError('HTTP deletion readback failed: ' + name)
