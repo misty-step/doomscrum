@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
 concurrency:
   group: cloudflare-static-site
   cancel-in-progress: false
@@ -18,15 +17,6 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Bound owned previews before allocating another
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          RETAINED_REVIEW_PREVIEW: doomscrum-site-preview-38799790030-1
-          LEGACY_PREVIEW_RUN: '38790637875'
-        run: |
-          python3 -m unittest discover -s cloudflare -p test_retention.py -v
-          python3 cloudflare/prune_previews.py --apply --native-transition
       - name: Preserve reviewed adapter and identify immutable serving source
         id: source
         run: |
@@ -103,6 +93,10 @@ jobs:
         run: |
           python3 cloudflare/rollback_canary.py visible
           python3 cloudflare/verify.py "$REVIEW_URL" --wait
+          cp cloudflare-http-proof.json preview-version-proof.json
+          code=$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' "$REVIEW_URL/__migration_rollback_probe_t_c60b5646.txt")
+          printf '%s %s\n' "$REVIEW_URL/__migration_rollback_probe_t_c60b5646.txt" "$code" > native-version-isolation.txt
+          test "$code" = 404
       - name: Native rollback to the immediately preceding verified A
         if: always() && steps.synthetic_deploy.conclusion == 'success'
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
@@ -126,6 +120,8 @@ jobs:
             cloudflare-http-proof.json
             cloudflare-readiness-proof.json
             preview-identity.json
+            preview-version-proof.json
+            native-version-isolation.txt
             rollback-*.json
           if-no-files-found: ignore
       - name: Refuse stale default-branch promotion
@@ -149,11 +145,4 @@ jobs:
         run: |
           host=$(python3 -c 'import json; print(json.load(open("cloudflare/wrangler.json"))["env"]["production"]["routes"][0]["pattern"])')
           python3 cloudflare/verify.py "https://$host" --wait
-      - name: Retain preview lifecycle readbacks
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: preview-retention-proof
-          path: ${{ runner.temp }}/preview-retention-proof.json
-          if-no-files-found: ignore
-          retention-days: 30
+
