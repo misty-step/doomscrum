@@ -58,23 +58,7 @@ jobs:
       - name: Record immutable native version review identity
         env:
           WRANGLER_OUTPUT: ${{ steps.preview_a.outputs.command-output }}
-        run: |
-          python3 - <<'PY'
-          import json, os, re
-          from pathlib import Path
-          config = json.loads(Path('cloudflare/wrangler.json').read_text())
-          output = os.environ['WRANGLER_OUTPUT']
-          versions = re.findall(r'Current Version ID: ([0-9a-f-]{36})', output)
-          assert len(versions) == 1, 'Expected exactly one native version identity'
-          url = 'https://' + versions[0][:8] + '-' + config['name'] + '.misty-step.workers.dev'
-          proof = {'version': versions[0], 'url': url, 'run': os.environ['GITHUB_RUN_ID'], 'attempt': os.environ['GITHUB_RUN_ATTEMPT']}
-          Path('preview-identity.json').write_text(json.dumps(proof, indent=2) + '\n')
-          with open(os.environ['GITHUB_ENV'], 'a') as env:
-              env.write('REVIEW_URL=' + url + '\n')
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Immutable review: ' + url + '\n\nVersion: ' + versions[0] + '\n')
-          print(json.dumps(proof))
-          PY
+        run: python3 cloudflare/preview_identity.py
       - name: Verify every deployed object, homepage and refusal
         run: python3 cloudflare/verify.py "$REVIEW_URL" --wait
       - name: Stage isolated synthetic rollback probe B
