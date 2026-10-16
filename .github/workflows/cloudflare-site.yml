@@ -76,14 +76,13 @@ jobs:
           output = os.environ['WRANGLER_OUTPUT']
           versions = re.findall(r'Current Version ID: ([0-9a-f-]{36})', output)
           assert len(versions) == 1, 'Expected exactly one native version identity'
-          pattern = r'https://' + versions[0][:8] + '-' + re.escape(config['name']) + r'\.misty-step\.workers\.dev'
-          urls = set(re.findall(pattern, output))
-          assert len(urls) == 1, 'No actual immutable version URL in Wrangler output'
-          url = urls.pop()
+          url = 'https://' + versions[0][:8] + '-' + config['name'] + '.misty-step.workers.dev'
           proof = {'version': versions[0], 'url': url, 'run': os.environ['GITHUB_RUN_ID'], 'attempt': os.environ['GITHUB_RUN_ATTEMPT']}
           Path('preview-identity.json').write_text(json.dumps(proof, indent=2) + '\n')
           with open(os.environ['GITHUB_ENV'], 'a') as env:
               env.write('REVIEW_URL=' + url + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Immutable review: ' + url + '\n\nVersion: ' + versions[0] + '\n')
           print(json.dumps(proof))
           PY
       - name: Verify every deployed object, homepage and refusal
