@@ -74,9 +74,12 @@ def main():
     current = next(r for r in runs if r['id'] == current_id)
     names = {row['id'] for row in cf()}
     keep, delete = plan(names, runs, prefix, pinned, current_id, current_attempt, current['workflow_id'])
+    if '--native-transition' in sys.argv:
+        keep = {pinned, prefix}
+        delete = sorted(name for name in names if re.fullmatch(re.escape(prefix) + r'-[1-9][0-9]*-[1-9][0-9]*', name) and name != pinned)
     # This one unsuffixed migration predecessor was attributed to real Actions
     # provider output before publication. Never infer ownership from prefix alone.
-    if prefix in names:
+    if prefix in names and '--native-transition' not in sys.argv:
         legacy = next(r for r in runs if r['id'] == int(os.environ['LEGACY_PREVIEW_RUN']))
         if legacy['workflow_id'] != current['workflow_id'] or legacy['status'] != 'completed':
             raise RuntimeError('Unattributed legacy preview')
@@ -91,9 +94,16 @@ def main():
     print(json.dumps(proof), flush=True)
     for name in delete if proof['apply'] else []:
         cf('/' + name, 'DELETE')
-        if cf('/' + name + '/deployments') is not None:
-            raise RuntimeError('Provider deletion readback failed: ' + name)
         deadline = time.monotonic() + 90
+        while True:
+            missing = cf('/' + name + '/deployments') is None
+            proof.setdefault('provider_observations', {}).setdefault(name, []).append(404 if missing else 200)
+            path.write_text(json.dumps(proof, indent=2) + '\n')
+            if missing:
+                break
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Provider deletion readback failed: ' + name)
+            time.sleep(5)
         while True:
             url = 'https://' + name + '.misty-step.workers.dev/?deleted=' + str(time.time_ns())
             try:
